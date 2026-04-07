@@ -1,62 +1,105 @@
-# stanford-karel
+# stanfordkarel-notebooks
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
-[![PyPI version](https://badge.fury.io/py/stanfordkarel.svg)](https://badge.fury.io/py/stanfordkarel)
-[![Build Status](https://github.com/TylerYep/stanfordkarel/actions/workflows/test.yml/badge.svg)](https://github.com/TylerYep/stanfordkarel/actions/workflows/test.yml)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/TylerYep/stanfordkarel/main.svg)](https://results.pre-commit.ci/latest/github/TylerYep/stanfordkarel/main)
-[![GitHub license](https://img.shields.io/github/license/TylerYep/stanfordkarel)](https://github.com/TylerYep/stanfordkarel/blob/main/LICENSE)
-[![Downloads](https://pepy.tech/badge/stanfordkarel)](https://pepy.tech/project/stanfordkarel)
+[![GitHub license](https://img.shields.io/github/license/akennis/stanfordkarel-notebooks)](https://github.com/akennis/stanfordkarel-notebooks/blob/main/LICENSE)
 
-This is a Python implementation of Karel for Stanford's CS 106A. This package is available on PyPI and allows you to run Karel programs without any additional setup!
+A fork of [TylerYep/stanfordkarel](https://github.com/TylerYep/stanfordkarel) — the Python implementation of Karel used in Stanford's CS 106A — extended with **Jupyter notebook support**. Karel programs run directly inside notebooks as animated GIFs, with no desktop window required.
 
-Huge props to @nick-bowman for rewriting this project from scratch!
+---
 
-**StanfordKarel now supports:**
+## Installation
 
-- Pip-installable package means you can run Karel programs from anywhere!
-- Solution code no longer needed to grade assignments - instead, the output worlds are compared.
-- Karel in ASCII! Plus autograder support.
-- Improved autograding, testing, linting, and auto-formatting.
-- Exception trace makes suggestions if you misspell a command (e.g. `turnLeft()` -> `turn_left()`).
+```bash
+pip install git+https://github.com/akennis/stanfordkarel-notebooks.git
+```
 
-# Usage
+---
 
-`pip install stanfordkarel`
+## For Educators
 
-# Documentation
+### Why Karel in a Notebook?
 
-Follow the Karel tutorial on the
-[Karel Reader!](https://compedu.stanford.edu/karel-reader/docs/python/en/intro.html)
+Jupyter notebooks let you combine executable code, explanatory text, images, and output in a single document. For a Karel-based introductory course, this means you can build an entire curriculum — textbook chapters, lab exercises, homework assignments, and automated tests — as notebooks that students open and run directly, without any IDE setup.
 
-## Running Karel
+**Notebook-based textbooks and readings.** A chapter on loops or conditionals can place a Karel world, the problem description, and a code cell for the student's solution all on the same page. Students read the concept, see it illustrated with Karel, and write code immediately — in the same document.
 
-First, ensure that StanfordKarel is correctly installed using pip.
-Any `.py` file can become a Karel program!
+**Labs and in-class exercises.** Each lab is a notebook. You distribute it, students fill in the code cells, run them, and see Karel animate. The animation appears inline so the feedback loop is immediate: write code → run cell → watch Karel move → adjust. No file management, no terminal.
 
-**collect_newspaper_karel.py**
+**Homework assignments.** Students submit their notebook. You can include assertion cells at the bottom that compare the resulting Karel world to the expected end state, giving students instant pass/fail feedback before they submit.
+
+**Testing and autograding.** The notebook renderer runs Karel headlessly and captures each step as a frame, so notebooks can run in CI or an autograder without a display. You can call `run_karel_program` with `main_func=` pointing to the student's function, check the resulting world programmatically, and report results — all within the notebook.
+
+### Setting Up a Course Notebook
+
+A typical assignment notebook cell looks like this:
 
 ```python
 from stanfordkarel import *
 
-
 def main():
-    """Karel code goes here!"""
-    turn_left()
+    # Students write their solution here
     move()
     turn_left()
+    move()
 
-
-if __name__ == "__main__":
-    run_karel_program()
+run_karel_program(world_text="Dimension: (5, 5)\nKarel: (1, 1); east", main_func=main)
 ```
 
-Save the file and run:
+When the student runs the cell, Karel's animated execution appears inline.
 
-```
-python collect_newspaper_karel.py
+To load a world from a URL instead, pass a string URL:
+
+```python
+run_karel_program(world_url="https://raw.githubusercontent.com/.../my_world.w", main_func=main)
 ```
 
-![Karel Program](images/karel_program.png)
+To test programmatically in the same notebook:
+
+```python
+from stanfordkarel.karel_program import KarelProgram
+from stanfordkarel.karel_executor import inject_karel_api
+from stanfordkarel.student_code import StudentCode
+
+karel = KarelProgram(world_text="Dimension: (5, 5)\nKarel: (1, 1); east")
+inject_karel_api(StudentCode(main_func=main), karel)
+# run karel.main() and compare to expected world state
+```
+
+---
+
+## For Students
+
+### What is a Jupyter Notebook?
+
+A Jupyter notebook is a document that mixes text, images, and runnable code cells. When your instructor gives you a notebook file (ending in `.ipynb`), you open it in a browser and work through it top to bottom. Each code cell has a **Run** button (or press **Shift+Enter**). You edit the code in the cell and run it to see what happens — the output appears directly below the cell.
+
+### How You Will Use Karel
+
+Karel is a simple robot that lives on a grid. It can move forward, turn left, pick up beepers, and put them down. Your job is to write Python instructions that tell Karel how to solve a puzzle.
+
+In this course, each assignment is a notebook. You will:
+
+1. **Read the problem** described in the notebook above the code cell.
+2. **Write your solution** in the code cell by defining a `main()` function.
+3. **Run the cell** (Shift+Enter). An animation will appear showing Karel executing your code step by step.
+4. **Fix and re-run** until Karel solves the puzzle correctly.
+
+A typical solution looks like this:
+
+```python
+from stanfordkarel import *
+
+def main():
+    move()
+    turn_left()
+    move()
+
+run_karel_program(world_text="Dimension: (5, 5)\nKarel: (1, 1); east", main_func=main)
+```
+
+You do not need to install anything beyond what your instructor provides. Just open the notebook and start writing.
+
+---
 
 ## Available Commands
 
@@ -73,83 +116,87 @@ python collect_newspaper_karel.py
 
 ## Available Colors
 
-- Red
-- Black
-- Cyan
-- Dark Gray
-- Gray
-- Green
-- Light gray
-- Magenta
-- Orange
-- Pink
-- White
-- Blue
-- Yellow
+Red, Black, Cyan, Dark Gray, Gray, Green, Light Gray, Magenta, Orange, Pink, White, Blue, Yellow
 
-### Folder structure
+---
 
-You can set a default world by passing a world name to run_karel_program,
-e.g. `run_karel_program("collect_newspaper_karel")`
-
-Worlds should be saved/loaded in a `worlds/` folder in the same folder as the file being run.
-
-- `assignment1/`
-  - `worlds/` (additional worlds go here)
-    - `collect_newspaper_karel.w`
-    - `collect_newspaper_karel_end.w`
-  - `collect_newspaper_karel.py`
-
-## Creating Worlds
-
-If using the pip-installed version, create a Python file containing:
+## `run_karel_program` Reference
 
 ```python
-from stanfordkarel.world_editor import run_world_editor
-
-if __name__ == "__main__":
-    run_world_editor()
+run_karel_program(
+    world_url=None,       # URL string pointing to a .w world file
+    world_text="",        # world definition as an inline string
+    main_func=main,       # required: the function containing student code
+    cell_size=50,         # pixel size of each grid cell in the animation
+    speed=None,           # animation speed 0–100 (default: 50)
+)
 ```
 
-Then run `python world_editor.py`.
+Exactly one of `world_url` or `world_text` must be provided. `main_func` is always required.
 
-![World Editor](images/world_editor.png)
+---
 
-## Grading
+## World File Format
 
-`./autograde` runs the available tests using pytest in the `tests/` folder and prints out any output differences in the world.
+World files (`.w`) are plain text, one directive per line:
 
-### Functionality
+```
+Dimension: (5, 5)
+Karel: (1, 1); east
+BeeperBag: INFINITY
+Wall: (2, 1); north
+Beeper: (3, 3) 2
+Color: (4, 4); Red
+Speed: 0.5
+```
 
-The tests use the student's code and the expected world output to determine correctness. If the output is not the same, the test driver will print out an ASCII representation of the differences.
+Key directives:
 
-![Autograder](images/autograder.png)
+| Directive | Parameters |
+| --- | --- |
+| `Dimension` | `(avenues, streets)` |
+| `Karel` | `(avenue, street); direction` |
+| `Wall` | `(avenue, street); direction` |
+| `Beeper` | `(avenue, street) count` |
+| `BeeperBag` | `num_beepers` or `INFINITY` |
+| `Color` | `(avenue, street); color` |
+| `Speed` | delay as a float (0.0–1.0) |
 
-### Style
+---
 
-The autograde command also runs the builtin Karel Style Checker that performs linting automatically.
+## Folder Structure
 
-## Development
+For file-based worlds, place `.w` files in a `worlds/` folder next to the notebook. End-state worlds used for grading are named `<world>_end.w`.
 
-Everything important is located in `stanfordkarel/`.
+```
+assignment1/
+  worlds/
+    collect_newspaper_karel.w
+    collect_newspaper_karel_end.w
+  collect_newspaper_karel.ipynb
+```
 
-- `stanfordkarel/` is the exported package, which contains all of the available functions and commands for students to use.
-- `karel_application.py` is responsible for loading student code and displaying it to the screen.
+---
 
-# Contributing
+## Original Library
 
-All issues and pull requests are much appreciated!
+This fork is based on [TylerYep/stanfordkarel](https://github.com/TylerYep/stanfordkarel). This fork removes the desktop tkinter GUI, ASCII renderer, and world editor from the original library in order to support environments (such as cloud-hosted Jupyter) where a display is not available. The core Karel logic, world file format, style checker, and "did you mean?" suggestions are preserved.
 
-- First, run `pip install pre-commit` and `pre-commit install`.
-- To see test coverage scripts and other auto-formatting tools, use `pre-commit run`.
-- To run all tests, run `pytest`.
+---
 
-## Future Milestones
+## Contributing
 
-In the future, I hope to add:
+- Install pre-commit hooks: `pip install pre-commit && pre-commit install`
+- Run tests: `uv run pytest`
+- Run type checking: `uv run mypy stanfordkarel/`
+- Lint and format: `pre-commit run --all-files`
 
-- Automatic student style checking
-- Ways of determining the student's strategy or approach from observing Karel movements
-- Autograde more worlds, broken down by assignment
-- Allow students to autograde their own work
-- Accessibility for visually-impaired students
+### Clean Rebuild
+
+To remove all build artifacts and caches for a fresh rebuild:
+
+```bash
+uv run poe clean   # removes .venv, dist, build, caches, __pycache__, etc.
+uv sync            # reinstalls dependencies
+pre-commit install # reinstalls git hooks
+```

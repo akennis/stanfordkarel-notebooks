@@ -5,9 +5,12 @@ This also contains helper methods for running tests or autograders.
 
 from pathlib import Path
 
-from stanfordkarel.karel_application import StudentCode
+from stanfordkarel.didyoumean import add_did_you_mean
+from stanfordkarel.karel_executor import inject_karel_api
 from stanfordkarel.karel_program import KarelException, KarelProgram
+from stanfordkarel.student_code import StudentCode
 
+WORLDS_DIR = Path(__file__).parent.parent / "stanfordkarel" / "worlds"
 PROBLEMS = (
     "checkerboard_karel",
     "collect_newspaper_karel",
@@ -19,31 +22,37 @@ STUDENT_CODE_DIR = Path("solutions")
 TIMEOUT = 10
 
 
+def _load_world(world_name: str) -> KarelProgram:
+    world_text = (WORLDS_DIR / f"{world_name}.w").read_text(encoding="utf-8")
+    return KarelProgram(world_text=world_text)
+
+
 def execute_karel_code(
     code_file: Path, world_name: str = "", expected_error: str = ""
 ) -> None:
     world_name = world_name or code_file.stem
-    karel = KarelProgram(world_name)
+    karel = _load_world(world_name)
     try:
         student_code = StudentCode(code_file)
     except (SyntaxError, RuntimeError) as e:
         assert str(e) == expected_error  # noqa: PT017
         return
 
-    student_code.inject_namespace(karel)
+    inject_karel_api(student_code, karel)
     try:
         student_code.main()
-        assert karel.compare_with(KarelProgram(f"{world_name}_end")), (
+        assert karel == _load_world(f"{world_name}_end"), (
             "Resulting world did not match expected result."
         )
     except (KarelException, NameError) as e:
+        add_did_you_mean(e)
         assert str(e) == expected_error  # noqa: PT017
 
 
 def create_solution_worlds() -> None:
     for problem_name in PROBLEMS:
-        karel = KarelProgram(problem_name)
+        karel = _load_world(problem_name)
         student_code = StudentCode(Path(f"problems/{problem_name}.py"))
-        student_code.inject_namespace(karel)
+        inject_karel_api(student_code, karel)
         student_code.main()
         karel.world.save_to_file(Path(f"worlds/{problem_name}_end.w"))

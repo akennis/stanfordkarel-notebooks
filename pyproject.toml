@@ -1,8 +1,9 @@
 [project]
-name = "stanfordkarel"
+name = "stanfordkarel-notebooks"
 version = "0.2.7"
-description = "Official Stanford Karel library used in CS 106A"
+description = "Fork of Stanford Karel library supporting notebook environments (e.g. jupyter, Colab, etc.)."
 authors = [
+    { name = "Albert Kennis", email = "a_kennis@yahoo.com" },
     { name = "Tyler Yep", email = "tyep@cs.stanford.edu" },
 ]
 readme = "README.md"
@@ -15,22 +16,36 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Visualization",
 ]
 requires-python = ">=3.8"
+dependencies = [
+    "Pillow>=8.0,<12.0",
+]
+
+[project.optional-dependencies]
+notebook = ["ipython>=7.0"]
 
 [dependency-groups]
 dev = [
     "mypy",
+    "poethepoet",
     "pre-commit",
     "pytest",
     "pytest-cov",
     "pytest-timeout",
     "ruff",
+    "types-requests",
     "types-setuptools",
 ]
 
 [project.urls]
-Homepage = "https://github.com/tyleryep/stanford-karel"
+Homepage = "https://github.com/akennis/stanfordkarel-notebooks"
+Repository = "https://github.com/akennis/stanfordkarel-notebooks"
+Issues = "https://github.com/akennis/stanfordkarel-notebooks/issues"
+Changelog = "https://github.com/akennis/stanfordkarel-notebooks/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = [
@@ -49,12 +64,21 @@ stanfordkarel = [
     "py.typed",
 ]
 
+[tool.poe.tasks]
+clean = "python clean.py"
+
 [tool.mypy]
 strict = true
 warn_unreachable = true
 disallow_any_unimported = true
 extra_checks = true
 enable_error_code = "ignore-without-code"
+
+[[tool.mypy.overrides]]
+module = [
+    "IPython.*",
+]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [

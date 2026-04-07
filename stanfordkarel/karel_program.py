@@ -19,7 +19,11 @@ Date of Creation: 10/1/2019
 
 from __future__ import annotations
 
-from .karel_ascii import AsciiKarelWorld, compare_output
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 from .karel_world import COLOR_MAP, INFINITY, Direction, KarelWorld
 
 NEXT_DIRECTION_MAP = {
@@ -42,31 +46,29 @@ DIRECTION_DELTA_MAP = {
 
 
 class KarelProgram:
-    def __init__(self, world_file: str) -> None:
-        """
-        This functions instantiates a new Karel instance and sets its
-        location and current number of beepers to be the default starting
-        values as indicated by the given world object.
-
-        Parameters:
-            world (KarelWorld) - The world that Karel should exists in
-
-        Members:
-            avenue (int) - The current avenue Karel is standing on.
-            street (int) - The current street Karel is standing on.
-            street (Direction[Enum]) - The current direction Karel is facing.
-            num_beepers (int) - The current number of beepers Karel has.
-
-        Returns: None
-        """
-        self.world = KarelWorld(world_file)
+    def __init__(
+        self,
+        world_url: str | None = None,
+        world_text: str = "",
+    ) -> None:
+        self.world = KarelWorld(world_url=world_url, world_text=world_text)
         self.avenue, self.street = self.world.karel_start_location
         self.direction = self.world.karel_start_direction
         self.num_beepers = self.world.karel_start_beeper_count
+        self._action_callbacks: list[Callable[[str], None]] = []
 
-    def __repr__(self) -> str:
-        """Creates a Karel World in ASCII Art!"""
-        return str(AsciiKarelWorld(self.world, self.street, self.avenue))
+    def add_action_callback(self, callback: Callable[[str], None]) -> None:
+        """
+        Adds a callback function to be executed after each Karel action.
+        """
+        self._action_callbacks.append(callback)
+
+    def _execute_callbacks(self, action_name: str) -> None:
+        """
+        Executes all registered action callbacks.
+        """
+        for callback in self._action_callbacks:
+            callback(action_name)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, KarelProgram):
@@ -75,21 +77,6 @@ class KarelProgram:
 
     def __hash__(self) -> int:
         return 0
-
-    def compare_with(self, other: KarelProgram, two_columns: bool = True) -> bool:
-        """
-        Options:
-            two_columns: bool (default=True)
-        """
-        if self == other:
-            return True
-        if not two_columns:
-            print(f"\n\nStudent output:\n{self}")
-            print(f"\nExpected output:\n{other}")
-            return False
-
-        print(compare_output(self, other))
-        return False
 
     def reset_state(self) -> None:
         """
@@ -123,6 +110,7 @@ class KarelProgram:
         delta_avenue, delta_street = DIRECTION_DELTA_MAP[self.direction]
         self.avenue += delta_avenue
         self.street += delta_street
+        self._execute_callbacks("move")
 
     def turn_left(self) -> None:
         """
@@ -132,6 +120,7 @@ class KarelProgram:
         Returns: None
         """
         self.direction = NEXT_DIRECTION_MAP[self.direction]
+        self._execute_callbacks("turn_left")
 
     def put_beeper(self) -> None:
         """
@@ -154,6 +143,7 @@ class KarelProgram:
             self.num_beepers -= 1
 
         self.world.add_beeper(self.avenue, self.street)
+        self._execute_callbacks("put_beeper")
 
     def pick_beeper(self) -> None:
         """
@@ -177,6 +167,7 @@ class KarelProgram:
             self.num_beepers += 1
 
         self.world.remove_beeper(self.avenue, self.street)
+        self._execute_callbacks("pick_beeper")
 
     def front_is_clear(self) -> bool:
         """
@@ -289,9 +280,7 @@ class KarelProgram:
             beepers_on_corner (Bool) - True if there's at least one beeper
                                        on Karel's current corner, False otherwise
         """
-        if (self.avenue, self.street) in self.world.beepers:
-            return self.world.beepers[(self.avenue, self.street)] != 0
-        return False
+        return self.world.beepers.get((self.avenue, self.street), 0) != 0
 
     def no_beepers_present(self) -> bool:
         return not self.beepers_present()
@@ -384,7 +373,7 @@ class KarelProgram:
             color (str) - The color string specifying which color to paint the corner
         Returns: None
         """
-        if color is not None and color not in COLOR_MAP:
+        if color and color not in COLOR_MAP:
             raise KarelException(
                 self.avenue,
                 self.street,
@@ -393,6 +382,7 @@ class KarelProgram:
                 "which is not valid.",
             )
         self.world.paint_corner(self.avenue, self.street, color)
+        self._execute_callbacks("paint_corner")
 
     def corner_color_is(self, color: str) -> bool:
         """

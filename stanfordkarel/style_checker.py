@@ -16,7 +16,7 @@ from typing import Any
 
 import stanfordkarel
 
-from .karel_application import StudentCode
+from .student_code import StudentCode
 
 
 def style_test(func: Callable[..., bool]) -> Callable[..., bool]:
@@ -38,14 +38,11 @@ class StyleChecker:
 
     def __init__(self, code_file: Path) -> None:
         self.student_code = StudentCode(code_file)
-        self.modules = self.student_code.mods
         self.module_lines = str(self.student_code).split("\n")
-        module_member_list = [inspect.getmembers(mod) for mod in self.modules]
+        module_member_list = [inspect.getmembers(self.student_code.mod)]
         self.function_list = [
             var_name
-            for var_name, value in
-            # flatten module_member_list
-            [m for module_members in module_member_list for m in module_members]
+            for var_name, value in module_member_list[0]
             if inspect.isfunction(value)
         ]
 

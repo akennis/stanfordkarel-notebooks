@@ -43,10 +43,12 @@ from __future__ import annotations
 
 import copy
 import re
-import sys
+import urllib.request
 from enum import Enum, unique
-from pathlib import Path
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 INFINITY = -1
 COLOR_MAP = {
@@ -76,18 +78,20 @@ VALID_WORLD_KEYWORDS = [
 ]
 KEYWORD_DELIM = ":"
 PARAM_DELIM = ";"
-DEFAULT_WORLD_FILE = "default_world.w"
 
 
 class KarelWorld:
-    def __init__(self, world_file: str) -> None:
+    def __init__(
+        self,
+        world_url: str | None = None,
+        world_text: str = "",
+    ) -> None:
         """
         Karel World constructor
         Parameters:
-            world_file: filename containing the initial state of Karel's world
+            world_url: URL to fetch the world definition from
+            world_text: world definition as a string (alternative to world_url)
         """
-        self.world_file = self.process_world(world_file)
-
         # Map of beeper locations to the count of beepers at that location
         self.beepers: dict[tuple[int, int], int] = {}
 
@@ -109,9 +113,17 @@ class KarelWorld:
         # Initial speed slider setting
         self.init_speed = INIT_SPEED
 
-        # If a world file has been specified, load world details from the file
-        if self.world_file:
-            self.load_from_file()
+        # Load world from inline text or URL
+        if world_text:
+            self.load_from_text(world_text)
+        elif world_url is not None:
+            self.load_from_url(world_url)
+        else:
+            raise ValueError(
+                "Either world_url or world_text must be provided.\n"
+                "Example: run_karel_program("
+                "world_text='Dimension: (5, 5)\\nKarel: (1, 1); east', main_func=main)"
+            )
 
         # Save initial beeper state to enable world reset
         self.init_beepers = copy.deepcopy(self.beepers)
@@ -129,50 +141,6 @@ class KarelWorld:
 
     def __hash__(self) -> int:
         return 0
-
-    @staticmethod
-    def process_world(world_file: str) -> Path:
-        """
-        If no world_file is provided, use default world.
-        Find world file that matches program name in the current worlds/ directory.
-        If not found, search the provided default worlds directory.
-        """
-        default_worlds_path = Path(__file__).absolute().parent / "worlds"
-        if not world_file:
-            default_world = default_worlds_path / DEFAULT_WORLD_FILE
-            if default_world.is_file():
-                print("Using default world...")
-                return default_world
-            raise FileNotFoundError(
-                f"Default world cannot be found in: {default_worlds_path}\n"
-                "Please raise an issue on the stanfordkarel GitHub."
-            )
-
-        world_filepath = Path(world_file)
-        if world_filepath.is_file():
-            return world_filepath
-
-        worlds_folder = Path("worlds")
-        for worlds_path in (worlds_folder, default_worlds_path):
-            if worlds_path.is_dir():
-                full_world_path = worlds_path / f"{world_file}.w"
-                if full_world_path.is_file():
-                    return full_world_path
-
-        if not worlds_folder.is_dir():
-            print("Could not find worlds/ folder in current directory.\n")
-
-        sys.tracebacklimit = 0
-        available_worlds = "\n".join(
-            [f"  {world.stem}" for world in default_worlds_path.glob("*.w")]
-        )
-        raise FileNotFoundError(
-            "The specified file was not one of the provided worlds.\n"
-            "Please store custom worlds in a folder named worlds/, "
-            f"or use a world listed below:\n{available_worlds}"
-            "\nPass the default world as a parameter in run_karel_program().\n"
-            "    e.g. run_karel_program('checkerboard_karel')"
-        )
 
     @staticmethod
     def get_alt_wall(wall: Wall) -> Wall:
@@ -232,79 +200,74 @@ class KarelWorld:
                 raise ValueError(f"Error: {param} is invalid parameter for {keyword}.")
         return params
 
-    def load_from_file(self) -> None:
-        with self.world_file.open(encoding="utf-8") as f:
-            for i, line_with_spaces in enumerate(f):
-                # Ignore blank lines and lines with no comma delineator
-                line = line_with_spaces.strip()
-                if not line:
-                    continue
+    def load_from_text(self, world_text: str) -> None:
+        for i, line_with_spaces in enumerate(world_text.splitlines()):
+            # Ignore blank lines and lines with no comma delineator
+            line = line_with_spaces.strip()
+            if not line:
+                continue
 
-                if KEYWORD_DELIM not in line:
-                    print(f"Incorrectly formatted - ignoring line {i} of file: {line}")
-                    continue
+            if KEYWORD_DELIM not in line:
+                print(f"Incorrectly formatted - ignoring line {i} of file: {line}")
+                continue
 
-                keyword, param_str = line.lower().split(KEYWORD_DELIM)
+            keyword, param_str = line.lower().split(KEYWORD_DELIM)
 
-                # only accept valid keywords as defined in world file spec
-                # TODO: add error detection for keywords with insufficient parameters
-                params = self.parse_parameters(keyword, param_str)
+            # only accept valid keywords as defined in world file spec
+            params = self.parse_parameters(keyword, param_str)
 
-                # handle all different possible keyword cases
-                if keyword == "dimension":
-                    # set world dimensions based on location values
-                    self.num_avenues, self.num_streets = params["location"]
+            # handle all different possible keyword cases
+            if keyword == "dimension":
+                # set world dimensions based on location values
+                self.num_avenues, self.num_streets = params["location"]
 
-                elif keyword == "wall":
-                    # build a wall at the specified location
-                    (avenue, street), direction = (
-                        params["location"],
-                        params["direction"],
-                    )
-                    self.walls.add(Wall(avenue, street, direction))
+            elif keyword == "wall":
+                # build a wall at the specified location
+                (avenue, street), direction = (
+                    params["location"],
+                    params["direction"],
+                )
+                self.walls.add(Wall(avenue, street, direction))
 
-                elif keyword == "beeper":
-                    # add the specified number of beepers to the world
-                    if params["location"] in self.beepers:
-                        self.beepers[params["location"]] += params["val"]
-                    else:
-                        self.beepers[params["location"]] = params["val"]
-
-                elif keyword == "karel":
-                    # Give Karel initial state values
-                    self.karel_start_location = params["location"]
-                    self.karel_start_direction = params["direction"]
-
-                elif keyword == "beeperbag":
-                    # Set Karel's initial beeper bag count
-                    self.karel_start_beeper_count = params["val"]
-
-                elif keyword == "speed":
-                    # Set delay speed of program execution
-                    self.init_speed = params["val"]
-
-                elif keyword == "color":
-                    # Set corner color to be specified color
-                    self.corner_colors[params["location"]] = params["color"]
-
+            elif keyword == "beeper":
+                # add the specified number of beepers to the world
+                if params["location"] in self.beepers:
+                    self.beepers[params["location"]] += params["val"]
                 else:
-                    print(f"Invalid keyword - ignoring line {i} of world file: {line}")
+                    self.beepers[params["location"]] = params["val"]
 
-    def set_karel_start_location(self, avenue: int, street: int) -> None:
-        self.karel_start_location = (avenue, street)
+            elif keyword == "karel":
+                # Give Karel initial state values
+                self.karel_start_location = params["location"]
+                self.karel_start_direction = params["direction"]
 
-    def set_karel_start_direction(self, direction: Direction) -> None:
-        self.karel_start_direction = direction
+            elif keyword == "beeperbag":
+                # Set Karel's initial beeper bag count
+                self.karel_start_beeper_count = params["val"]
 
-    def set_karel_start_beeper_count(self, beeper_count: int) -> None:
-        self.karel_start_beeper_count = beeper_count
+            elif keyword == "speed":
+                # Set delay speed of program execution
+                self.init_speed = params["val"]
+
+            elif keyword == "color":
+                # Set corner color to be specified color
+                self.corner_colors[params["location"]] = params["color"]
+
+            else:
+                print(f"Invalid keyword - ignoring line {i} of world file: {line}")
+
+    def load_from_url(self, world_url: str) -> None:
+        with urllib.request.urlopen(str(world_url), timeout=30) as response:  # noqa: S310
+            self.load_from_text(response.read().decode())
 
     def add_beeper(self, avenue: int, street: int) -> None:
         self.beepers[(avenue, street)] = self.beepers.get((avenue, street), 0) + 1
 
     def remove_beeper(self, avenue: int, street: int) -> None:
-        if self.beepers[(avenue, street)] > 0:
+        if self.beepers.get((avenue, street), 0) > 0:
             self.beepers[(avenue, street)] -= 1
+            if self.beepers[(avenue, street)] == 0:
+                del self.beepers[(avenue, street)]
 
     def add_wall(self, wall: Wall) -> None:
         alt_wall = self.get_alt_wall(wall)
@@ -325,8 +288,8 @@ class KarelWorld:
         return ""
 
     def reset_corner(self, avenue: int, street: int) -> None:
-        self.beepers[(avenue, street)] = 0
-        self.corner_colors[(avenue, street)] = ""
+        self.beepers.pop((avenue, street), None)
+        self.corner_colors.pop((avenue, street), None)
 
     def wall_exists(self, avenue: int, street: int, direction: Direction) -> bool:
         wall = Wall(avenue, street, direction)
@@ -339,12 +302,6 @@ class KarelWorld:
         """Reset initial state of beepers in the world"""
         self.beepers = copy.deepcopy(self.init_beepers)
         self.corner_colors = {}
-
-    def reload_world(self, filename: str | None = None) -> None:
-        """Reloads world using constructor."""
-        # TODO: To fix this, we need to figure out why the constructor does not reset
-        # everything. Use New World to test.
-        self.__init__(filename)  # type: ignore[misc]
 
     def save_to_file(self, filepath: Path) -> None:
         # First, output dimensions of world
@@ -398,7 +355,7 @@ class Direction(Enum):
 
 
 class Wall(NamedTuple):
-    """Note that the World Editor only uses West & South to denote wall directions."""
+    """Walls are stored using west or south directions only (every wall can be expressed this way)."""  # noqa: E501
 
     avenue: int
     street: int

@@ -107,14 +107,16 @@ def get_suggestions_for_exception(
 ) -> str:
     """Get suggestions for an exception."""
     frame = get_last_frame(traceback)
-    suggestions = itertools.chain.from_iterable(
-        func(value, frame)
-        for error_type, functions in SUGGESTION_FUNCTIONS.items()
-        if isinstance(value, error_type)
-        for func in functions
+    suggestions = list(
+        itertools.chain.from_iterable(
+            func(value, frame)
+            for error_type, functions in SUGGESTION_FUNCTIONS.items()
+            if isinstance(value, error_type)
+            for func in functions
+        )
     )
     if suggestions:
-        return f". Did you mean {', '.join(list(suggestions))}?"
+        return f". Did you mean {', '.join(suggestions)}?"
     return ""
 
 

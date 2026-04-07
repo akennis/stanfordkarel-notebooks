@@ -1,49 +1,21 @@
 from pathlib import Path
 
-from stanfordkarel.karel_application import StudentCode
+from stanfordkarel.karel_executor import inject_karel_api
 from stanfordkarel.karel_program import KarelProgram
+from stanfordkarel.student_code import StudentCode
 
-STONE_MASON_ASCII_OUTPUT = (
-    "┌───────────────────────────────────────────────────────────────────────────────┐",
-    "│   ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│                                                                               │",
-    "│   ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│                                                                               │",
-    "│   ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│                                                                               │",
-    "│   ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│                                                                               │",
-    "│   ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│                                                                               │",
-    "│   ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│            ┌─────┐                 ┌─────┐                 ┌─────┐            │",
-    "│   ·     ·  │  ·  │  ·     ·     ·  │  ·  │  ·     ·     ·  │  ·  │  ·     ·   │",
-    "│      ┌─────┘     └─────┐     ┌─────┘     └─────┐     ┌─────┘     └─────┐      │",
-    "│   ·  │  ·     ·     ·  │  ·  │  ·     ·     ·  │  ·  │  ·     ·     ·  │  ·   │",
-    "│ ─────┘                 └─────┘                 └─────┘                 └───── │",
-    "│  <1>    ·     ·     ·     ·     ·     ·     ·    <1>    ·     ·     ·    <1>  │",
-    "│                                                                               │",
-    "│  <1>    ·     ·     ·    <1>    ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│                                                                               │",
-    "│   ·     ·     ·     ·     ·     ·     ·     ·    <1>    ·     ·     ·    <1>  │",
-    "│                                                                               │",
-    "│   ·     ·     ·     ·    <1>    ·     ·     ·     ·     ·     ·     ·     ·   │",
-    "│                                                                               │",
-    "│   K     ·     ·     ·    <1>    ·     ·     ·     ·     ·     ·     ·    <1>  │",
-    "└───────────────────────────────────────────────────────────────────────────────┘",
-)
+WORLDS_DIR = Path(__file__).parent.parent / "stanfordkarel" / "worlds"
+
+
+def _load_world(world_name: str) -> KarelProgram:
+    world_text = (WORLDS_DIR / f"{world_name}.w").read_text(encoding="utf-8")
+    return KarelProgram(world_text=world_text)
 
 
 class TestKarelWorld:
     @staticmethod
-    def test_karel_ascii() -> None:
-        karel = KarelProgram("stone_mason_karel")
-
-        assert str(karel) == "\n".join(STONE_MASON_ASCII_OUTPUT) + "\n"
-
-    @staticmethod
     def test_save_to_file(tmp_path: Path) -> None:
-        karel = KarelProgram("stone_mason_karel")
+        karel = _load_world("stone_mason_karel")
         output_file = tmp_path / "test_world.w"
         karel.world.save_to_file(output_file)
         expected = (
@@ -98,13 +70,13 @@ class TestKarelWorld:
         py_path = (tmp_path / code_file).with_suffix(".py")
         py_path.write_text(txt_file_contents)
 
-        test_program = KarelProgram("1x1")
+        test_program = _load_world("1x1")
 
         test_code = StudentCode(py_path)
-        test_code.inject_namespace(test_program)
+        inject_karel_api(test_code, test_program)
         test_code.main()
 
-        ref_program = KarelProgram("1x1")
+        ref_program = _load_world("1x1")
 
         assert ref_program.world.beepers == test_program.world.beepers
 
@@ -117,19 +89,19 @@ class TestKarelWorld:
         py_path = (tmp_path / code_file).with_suffix(".py")
         py_path.write_text(txt_file_contents)
 
-        test_program = KarelProgram("1x1")
+        test_program = _load_world("1x1")
 
         test_code = StudentCode(py_path)
-        test_code.inject_namespace(test_program)
+        inject_karel_api(test_code, test_program)
         test_code.main()
 
-        ref_program = KarelProgram("1x1")
+        ref_program = _load_world("1x1")
 
         assert ref_program.world.corner_colors == test_program.world.corner_colors
 
     @staticmethod
     def test_equal_worlds() -> None:
-        test_program = KarelProgram("1x1")
-        ref_program = KarelProgram("1x1")
+        test_program = _load_world("1x1")
+        ref_program = _load_world("1x1")
 
         assert ref_program.world == test_program.world

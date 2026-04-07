@@ -13,16 +13,15 @@ Email: nbowman@stanford.edu
 Date of Creation: 10/1/2019
 """
 
-import sys
-import tkinter as tk
-from pathlib import Path
+from collections.abc import Callable
 
-from .karel_application import KarelApplication
+from .karel_image_renderer import KarelImageRenderer
 from .karel_program import KarelProgram
+from .student_code import StudentCode
 
 # The following function definitions are defined as stubs so that IDEs can recognize
 # the function definitions in student code. These names are re-bound upon program
-# execution to asscoiate their behavior to the one particular Karel object located
+# execution to associate their behavior to the one particular Karel object located
 # in a given world.
 
 
@@ -140,27 +139,26 @@ YELLOW = "Yellow"
 BLANK = ""
 
 
-def run_karel_program(world_file: str = "") -> None:
-    # Extract the name of the file the student is executing
-    student_code_file = Path(sys.argv[0])
+def run_karel_program(
+    world_url: str | None = None,
+    main_func: Callable[[], None] | None = None,
+    world_text: str = "",
+    cell_size: int = 50,
+    speed: int | None = None,
+) -> None:
+    if main_func is None:
+        raise ValueError(
+            "main_func= is required.\n"
+            "Example: run_karel_program(world_text='...', main_func=main)"
+        )
 
-    # Special case - if filename matches a specified world name,
-    # Set the default world to the world with that name.
-    # I personally recommend removing this functionality completely.
-    if (
-        not world_file
-        and (
-            Path(__file__).absolute().parent
-            / "worlds"
-            / student_code_file.with_suffix(".w").name
-        ).is_file()
-    ):
-        world_file = student_code_file.stem
+    if speed is not None and not 0 <= speed <= 100:
+        raise ValueError(f"speed must be between 0 and 100, got {speed}.")
 
-    # Create Karel and assign it to live in the newly created world
-    karel = KarelProgram(world_file)
+    karel = KarelProgram(world_url=world_url, world_text=world_text)
+    if speed is not None:
+        karel.world.init_speed = speed
 
-    # Initialize root Tk Window and spawn Karel application
-    root = tk.Tk()
-    app = KarelApplication(karel, student_code_file, master=root)
-    app.mainloop()
+    renderer = KarelImageRenderer(karel.world, karel, cell_size=cell_size)
+    student_code = StudentCode(main_func=main_func)
+    renderer.run_and_render_to_ipython(student_code)

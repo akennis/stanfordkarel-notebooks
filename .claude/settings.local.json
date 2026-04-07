@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tee C:Usersalbert.kennisprojectsstanfordkarel-notebookstest_output.txt)"
+    ]
+  }
+}
